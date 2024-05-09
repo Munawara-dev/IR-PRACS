@@ -1,0 +1,361 @@
+prac 1A
+Implement Inverted index
+
+docs = [
+    "new home sales top forecasts",
+    "home sales rise in july",
+    "increase in home sales in july",
+    "july new home sales rise"
+]
+
+inverted_index = {}
+for i, doc in enumerate(docs):
+    for term in doc.split():
+        inverted_index.setdefault(term, []).append(i)
+
+term_to_search = 'july'
+posting_list = inverted_index.get(term_to_search, [])
+print(f"Posting list for '{term_to_search}': {posting_list}")
+
+print("Inverted index:")
+for term, posting_list in inverted_index.items():
+    print(term, ":", posting_list)
+_______________________________________________________________
+1B
+Build Simple document retrieval system
+import re
+from collections import defaultdict
+
+class DocumentRetrievalSystem:
+    def __init__(self):
+        self.index = defaultdict(set)
+
+    def index_document(self, doc_id, text):
+        words = set(re.findall(r'\b\w+\b', text.lower()))
+        for word in words:
+            self.index[word].add(doc_id)
+
+    def search(self, query):
+        query_terms = set(re.findall(r'\b\w+\b', query.lower()))
+        result_docs = set.intersection(*(self.index[term] for term in query_terms if term in self.index))
+        return list(result_docs)
+
+doc_retrieval_system = DocumentRetrievalSystem()
+documents = [
+    "This is the first document",
+    "This is the second document",
+    "This is the third document",
+    "This is the fourth"
+]
+for i, doc in enumerate(documents, 1):
+    doc_retrieval_system.index_document(i, doc)
+
+query = "Document"
+result = doc_retrieval_system.search(query)
+print("Query:", query)
+print("Result:", result)
+=====================================================================================================================
+
+Prac2A
+Implement the Boolean retrieval model 
+
+import re
+from collections import defaultdict
+
+class BooleanRetrievalSystem:
+    def __init__(self):
+        self.index = defaultdict(set)
+
+    def index_document(self, doc_id, text):
+        words = re.findall(r'\b\w+\b', text.lower())
+        for word in set(words):
+            self.index[word].add(doc_id)
+
+    def search(self, query):
+        query = query.lower()
+        query_terms = re.findall(r'\b\w+\b', query)
+        result_docs = set()
+        current_operator = "or"  # Default operator is "or" for the first term
+        for term in query_terms:
+            if term in ["and", "or", "not"]:
+                current_operator = term
+            else:
+                term_docs = self.index.get(term, set())
+                if current_operator == "or":
+                    result_docs.update(term_docs)
+                elif current_operator == "and":
+                    result_docs.intersection_update(term_docs)
+                elif current_operator == "not":
+                    result_docs.difference_update(term_docs)
+        return list(result_docs)
+
+bool_retrieval_system = BooleanRetrievalSystem()
+bool_retrieval_system.index_document(1, "this is the first document.")
+bool_retrieval_system.index_document(2, "this is the second document")
+bool_retrieval_system.index_document(3, "this is the third document")
+bool_retrieval_system.index_document(4, "this is the fourth document")
+query = "first and document not third"
+result = bool_retrieval_system.search(query)
+print("Query:", query)
+print("Result:", result)
+_____________________________________________________________________________
+2B
+Implement the vector space model with TF-IDF weighting and cosine similarity
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+documents = [
+    "This is the first document",
+    "This document is the second document",
+    "And this is the third one",
+    "Is this the first document?"
+]
+vectorizer = TfidfVectorizer()
+tfidf_matrix = vectorizer.fit_transform(documents)
+
+cosine_similarities = cosine_similarity(tfidf_matrix, tfidf_matrix)
+print("TF-IDF Matrix:")
+print(tfidf_matrix.toarray())
+
+print("\nCosine Similarity matrix:")
+print(cosine_similarities)
+
+def get_most_similar_document(query, vectorizer, tfidf_matrix, documents):
+    query_tfidf = vectorizer.transform([query])
+    similarity_scores = cosine_similarity(query_tfidf, tfidf_matrix)
+    most_similar_index = similarity_scores.argmax()
+    return documents[most_similar_index], similarity_scores[0, most_similar_index]
+
+query = "This is a new document"
+most_similar_document, similarity_score = get_most_similar_document(query, vectorizer, tfidf_matrix, documents)
+print(f"\nMost similar document to '{query}':")
+print(most_similar_document)
+print(f"Similarity score: {similarity_score}")
+===========================================================================================================
+3A
+Develop a spelling correction module using edit distance algorithm
+
+def levenshtein_distance(str1, str2):
+    len_str1, len_str2 = len(str1) + 1, len(str2) + 1
+    matrix = [[i + j if i * j == 0 else 0 for j in range(len_str2)] for i in range(len_str1)]
+    for i in range(1, len_str1):
+        for j in range(1, len_str2):
+            matrix[i][j] = min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + (str1[i - 1] != str2[j - 1]))
+    return matrix[-1][-1]
+
+def correct_spelling(input_word, word_list):
+    return min(word_list, key=lambda word: levenshtein_distance(input_word, word))
+
+# Example usage:
+word_list = ["world", "apple", "banana", "orange", "grape", "strawberry"]
+input_word = input("Enter a word: ")
+print(f"Did you mean: {correct_spelling(input_word, word_list)}")
+=================================================================================================
+4A
+Calculate precision, recall, and F-measure for a given set of retrieval results.
+
+def calculate_metrics(retrieved_set, relevant_set):
+    tp = len(retrieved_set & relevant_set)
+    fp = len(retrieved_set - relevant_set)
+    fn = len(relevant_set - retrieved_set)
+
+    print("True Positive:", tp, "\nFalse Positive:", fp, "\nFalse Negative:", fn, "\n")
+
+    p, r = tp / (tp + fp), tp / (tp + fn)
+    f_measure = 2 * p * r / (p + r)
+    return p, r, f_measure
+
+retrieved_set = {"doc1", "doc2", "doc3"}  # Predicted set
+relevant_set = {"doc1", "doc4"}           # Actually Needed set (Relevant)
+precision, recall, f_measure = calculate_metrics(retrieved_set, relevant_set)
+_______________________________________________________________________________________
+4B
+Use an evaluation toolkit to measure average precision and other evaluation metrics
+
+from sklearn.metrics import average_precision_score
+
+y_true = [0, 1, 1, 0, 1, 1]
+y_scores = [0.1, 0.4, 0.35, 0.8, 0.65, 0.9]
+
+average_precision = average_precision_score(y_true, y_scores)
+
+print(f'Average precision-recall score: {average_precision}')
+=========================================================================================
+6A
+Implement a clustering algorithm (e.g., K-means or hierarchical clustering).
+
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_blobs
+from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import dendrogram, linkage
+
+# Generate synthetic data for demonstration
+X, _ = make_blobs(n_samples=300, centers=3, cluster_std=0.60, random_state=0)
+
+# Visualize the generated data
+plt.scatter(X[:, 0], X[:, 1], s=50)
+plt.title('Synthetic Data for Hierarchical Clustering')
+plt.show()
+
+# Perform hierarchical clustering using Agglomerative Clustering
+agg_labels = AgglomerativeClustering(n_clusters=3, linkage='ward').fit_predict(X)
+
+# Visualize the clustering results
+plt.scatter(X[:, 0], X[:, 1], c=agg_labels, cmap='viridis', s=50)
+plt.title('Hierarchical Clustering Results')
+plt.show()
+
+# Plot the dendrogram
+dendrogram(linkage(X, 'ward'), orientation='top', distance_sort='descending', show_leaf_counts=True)
+plt.title('Hierarchical Clustering Dendrogram')
+plt.show()
+_____________________________________________________________________________________________________________
+6A
+kmean
+
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_blobs
+from sklearn.cluster import KMeans
+
+# Generate synthetic data for demonstration
+X, _ = make_blobs(n_samples=300, centers=3, cluster_std=0.60, random_state=0)
+
+# Visualize the generated data
+plt.scatter(X[:, 0], X[:, 1], s=50)
+plt.title('Synthetic Data for K-means Clustering')
+plt.show()
+
+# Perform K-means clustering
+kmeans = KMeans(n_clusters=3, random_state=0)
+kmeans_labels = kmeans.fit_predict(X)
+
+# Visualize the clustering results
+plt.scatter(X[:, 0], X[:, 1], c=kmeans_labels, cmap='viridis', s=50)
+plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], c='red', marker='x', s=200, label='Centroids')
+plt.title('K-means Clustering Results')
+plt.legend()
+plt.show()
+_________________________________________________________________________________________________________________________
+6B
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+from sklearn.datasets import fetch_20newsgroups  # Example dataset
+
+# Load example dataset (replace with your own data loading code)
+newsgroups_data = fetch_20newsgroups(subset='all', remove=('headers', 'footers', 'quotes'))
+documents = newsgroups_data.data
+
+# TF-IDF vectorization
+vectorizer = TfidfVectorizer(stop_words='english', max_features=1000)
+X = vectorizer.fit_transform(documents)
+
+# Perform K-means clustering
+num_clusters = 5  # Adjust the number of clusters based on your needs
+kmeans = KMeans(n_clusters=num_clusters, random_state=42,n_init=10)
+kmeans_labels = kmeans.fit_predict(X)
+
+# Evaluate the clustering results using silhouette score
+silhouette_avg = silhouette_score(X, kmeans_labels)
+print(f"Silhouette Score: {silhouette_avg:.2f}")
+
+# Print some information about the clusters
+for cluster_id in range(num_clusters):
+    cluster_samples = np.where(kmeans_labels == cluster_id)[0]
+    print(f"\nCluster {cluster_id} ({len(cluster_samples)} documents):")
+    for sample_idx in cluster_samples[:min(3, len(cluster_samples))]:
+        print(f"   - {documents[sample_idx].strip()}")
+====================================================================================================================
+7A Develop a web crawler to fetch and index web pages
+
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse, urljoin
+from collections import deque
+
+def fetch_url(url):
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.text
+    except Exception as e:
+        print(f"Error fetching {url}: {e}")
+    return None
+
+def extract_links(html, base_url):
+    soup = BeautifulSoup(html, 'html.parser')
+    links = []
+    for link in soup.find_all('a', href=True):
+        absolute_url = urljoin(base_url, link['href'])
+        links.append(absolute_url)
+    return links
+
+def index_page(url, content):
+    # Implement your indexing logic here
+    pass
+
+def web_crawler(seed_url, max_pages=10):
+    visited = set()
+    queue = deque([(seed_url, 0)])
+
+    while queue and len(visited) < max_pages:
+        current_url, depth = queue.popleft()
+        if current_url not in visited:
+            print(f"Processing {current_url}")
+            html_content = fetch_url(current_url)
+            if html_content:
+                index_page(current_url, html_content)
+                visited.add(current_url)
+                if depth < max_pages:
+                    links = extract_links(html_content, current_url)
+                    queue.extend((link, depth + 1) for link in links)
+
+seed_url = 'https://facebook.com'
+web_crawler(seed_url, max_pages=5)
+__________________________________________________________________________________
+8A Implement the PageRank algorithm to rank web pages based on link analysi
+vector_dict = {"A": [0, 1, 1, 1], "B": [0, 0, 1, 0], "C": [1, 0, 0, 1], "D": [0, 0, 0, 0]}
+df = 0.85
+PageRank = {"A": 1, "B": 1, "C": 1, "D": 1}
+columns = {"A": 0, "B": 1, "C": 2, "D": 3}
+
+def connections(page):
+    return [i for i, v in vector_dict.items() if v[columns[page]] == 1]
+
+def outDegree(node):
+    return sum(vector_dict[node])
+
+for iteration in range(3):
+    for page in PageRank:
+        PageRank[page] = (1 - df) + df * sum(PageRank[node] / outDegree(node) for node in connections(page))
+        print("PageRank for iteration", iteration, "is", PageRank[page])
+________________________________________________________________________________________________________________
+8B  Apply page rank algorithm to small web graph and analyze the result
+
+import networkx as nx
+
+web_graph = nx.DiGraph()
+web_graph.add_edges_from([
+    ('A', 'B'),
+    ('A', 'C'),
+    ('B', 'A'),
+    ('C', 'A'),
+    ('C', 'B')
+])
+
+pagerank_scores = nx.pagerank(web_graph)
+
+print("PageRank Scores: ")
+for node, score in pagerank_scores.items():
+    print(f"{node}: {score:.4F}")
+
+sorted_nodes = sorted(pagerank_scores, key=pagerank_scores.get, reverse=True)
+print("\nNodes ranked by PageRank: ")
+for node in sorted_nodes:
+    print(f"{node}: {pagerank_scores[node]:.4f}")
+====================================================================================================================
+
